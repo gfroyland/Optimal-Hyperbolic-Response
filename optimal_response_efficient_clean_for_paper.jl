@@ -1,4 +1,4 @@
-using LinearAlgebra, SparseArrays, Statistics, FFTW, Arpack, ForwardDiff, ProgressMeter, JLD2, CairoMakie, Distances, Optim
+using LinearAlgebra, SparseArrays, Statistics, FFTW, Arpack, ForwardDiff, ProgressMeter, JLD2, CairoMakie
 
 function fft_and_reorder(Afine, 𝐊, d)
     #Afine is a general NxN array of values on a fine grid
