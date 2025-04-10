@@ -25,7 +25,7 @@ function optimal_response_efficient(n)
     #L is the transfer operator representation in Fourier space
 
     #define map on 2-torus
-    δ = 0.01
+    δ = 0.00
     T(x) = mod.([2x[1] + x[2] + 2δ * cos(2π * x[1]), x[1] + x[2] + δ * sin(4π * x[2] + 1)], 1)
     Tlift(x) = [2x[1] + x[2] + 2δ * cos(2π * x[1]), x[1] + x[2] + δ * sin(4π * x[2] + 1)]
 
@@ -45,7 +45,6 @@ function optimal_response_efficient(n)
 
     #fine spatial grid of 2-vectors x on 2-torus
     finespacerange = (1/2:N-1/2) / N
-    #inespacerange = (0:N-1) / N
     xfine = [[x₁, x₂] for x₂ ∈ finespacerange, x₁ ∈ finespacerange]
 
     #function outputting Fourier coefficients of 2D Fejer kernel. Input 𝐤 is a 2-vector
@@ -61,17 +60,13 @@ function optimal_response_efficient(n)
     println("Constructing transfer operator...")
     @showprogress Threads.@threads for 𝐢 ∈ 𝐊
         #calculate fft of e(-𝐢)∘T on xfine
-        ê𝐢T = fftshift(fft([e(-𝐢, x) for x ∈ Txfine]) / N^2)  #T.(xfine) should be a 2d array of 2-vectors.  I had to do fftshift for indexing in line 49 below
-        #if norm(ê𝐢T) * F̂(𝐢) / N > 1e-10
+        ê𝐢T = fftshift(fft([e(-𝐢, x) for x ∈ Txfine]) / N^2)
         for 𝐣 ∈ 𝐊
             #compute product of Fejer kernel Fourier coefficient and e∘T Fourier coefficient
             L[d[𝐢], d[𝐣]] = F̂(𝐢) * ê𝐢T[-𝐣[2]+N÷2+1, -𝐣[1]+N÷2+1]
-            #compute pure Fourier truncation without Fejer kernel smoothing
-            #L[d[𝐢], d[𝐣]] = ê𝐢T[-𝐣[1]+N÷2+1, -𝐣[2]+N÷2+1]
         end
     end
 
-    #PREPARE FOR PLOTTING LEADING EIGENFUNCTION
     println("Eigensolving...")
     @time λ, v̂ = eigs(sparse(L), nev=1, which=:LM)
     #f̂ is the leading eigenvector in frequency space
@@ -81,7 +76,7 @@ function optimal_response_efficient(n)
     f(x) = sum(f̂[d[𝐤]] * e(𝐤, x) for 𝐤 ∈ 𝐊)
     #evaluate the above linear combination on the fine spatial grid
     ffine = f.(xfine)
-    #maximise real part
+    #alter phase to maximise real part
     ψ = -angle(transpose(ffine[:]) * ffine[:]) / 2
     ffine = ffine * exp(im * ψ)
     parity = sign(real(ffine[1]))
@@ -90,11 +85,9 @@ function optimal_response_efficient(n)
 
     #plot
     println("Plotting...")
-    #display(Plots.heatmap(finespacerange, finespacerange, real(μfine)', colormap=:Blues))
     srbfig = Figure(size=(450, 400))
     srbax = Axis(srbfig[1, 1], autolimitaspect=1)
-    #NOTE THAT MAKIE NEEDS A TRANSPOSE ON THE GRIDDED FFINE TO PLOT IT CORRECTLY
-    @time heatmap!(srbax, finespacerange, finespacerange, ffineplot', colormap=:Blues)
+    heatmap!(srbax, finespacerange, finespacerange, ffineplot', colormap=:Blues)
     Colorbar(srbfig[1, 2], limits=(0, maximum(ffineplot)), colormap=:Blues)
     display(srbfig)
 
@@ -103,17 +96,8 @@ function optimal_response_efficient(n)
     restrind = setdiff(1:n^2, d[[0, 0]])
     unitresolvent = inv(I - L[restrind, restrind])
 
-    # c(x) = cos(2π * x[1]) + cos(2π * x[2])  #max at fixed point [0,0] and min at [0.5,0.5]
-    c(x) = sin(2π * (x[1]))^2 + cos(2π * (x[2] - 0.5))  #period 2 stabilisation
-
-    cfig = Figure(size=(450, 400))
-    cax = Axis(cfig[1, 1], autolimitaspect=1)
-    #NOTE THAT MAKIE NEEDS A TRANSPOSE ON THE GRIDDED FFINE TO PLOT IT CORRECTLY
-    heatmap!(cax, finespacerange, finespacerange, c.(xfine)', colormap=:RdBu)
-    Colorbar(cfig[1, 2], limits=(minimum(c.(xfine)), maximum(c.(xfine))), colormap=:RdBu)
-    display(cfig)
-    save("cfig.pdf", cfig)
-
+    c(x) = cos(2π * x[1]) + cos(2π * x[2])  #max at fixed point [0,0] and min at [0.5,0.5]
+    #c(x) = sin(2π * (x[1]))^2 + cos(2π * (x[2] - 0.5))  #period 2 stabilisation
     ĉordered = fft_and_reorder(c.(xfine), 𝐊, d)
     premult = ĉordered[restrind]' * unitresolvent * L[restrind, restrind]
 
@@ -122,7 +106,7 @@ function optimal_response_efficient(n)
     invDT = x -> inv(ForwardDiff.jacobian(Tlift, x))
     DinvDT = x -> ForwardDiff.jacobian(invDT, x)
     divinvDT(x) = [DinvDT(x)[1, 1] + DinvDT(x)[2, 2], DinvDT(x)[3, 1] + DinvDT(x)[4, 2]]
-   
+
     invDTfine = invDT.(xfine)
     divinvDTfine = divinvDT.(xfine)
 
@@ -143,14 +127,11 @@ function optimal_response_efficient(n)
 
     #set scale factor γ in the Sobolev H⁵ norm
     γ = 0.025
-    #γ = 0.02
-    #γ = 0.015
-   
+
     scale(𝐤) = sum((2π * γ)^(2m) * norm(𝐤)^(2m) for m = 0:5)
 
     #compute Fourier coefficients of the x-component of the optimal vector field
     @showprogress Threads.@threads for 𝐤 ∈ 𝐊
-
         term1 = term1prelim .* [[e(𝐤, x), 0] for x ∈ xfine]
         term2 = term2prelim .* [[e(𝐤, x), 0] for x ∈ xfine]
         term3 = tr.(term3prelim .* [∂e1(𝐤, x) for x ∈ xfine])
@@ -158,12 +139,10 @@ function optimal_response_efficient(n)
         #store result
         a1[d[𝐤]] = premult * fftallterms[restrind] / scale(𝐤)
         termsum1[d[𝐤]] = fftallterms[d[[0, 0]]]
-
     end
 
     #compute Fourier coefficients of the y-component of the optimal vector field
     @showprogress Threads.@threads for 𝐤 ∈ 𝐊
-
         term1 = term1prelim .* [[0, e(𝐤, x)] for x ∈ xfine]
         term2 = term2prelim .* [[0, e(𝐤, x)] for x ∈ xfine]
         term3 = tr.(term3prelim .* [∂e2(𝐤, x) for x ∈ xfine])
@@ -171,12 +150,11 @@ function optimal_response_efficient(n)
         #store result
         a2[d[𝐤]] = premult * fftallterms[restrind] / scale(𝐤)
         termsum2[d[𝐤]] = fftallterms[d[[0, 0]]]
-
     end
 
     #put together to make a vector field
     Ṫ(x) = sum(a1[d[𝐤]] * [e(𝐤, x), 0] for 𝐤 ∈ 𝐊) + sum(a2[d[𝐤]] * [0, e(𝐤, x)] for 𝐤 ∈ 𝐊)
-   
+
     #coarse spatial grid of 2-vectors x on 2-torus
     coarsespacerange = (1/2:n-1/2) / n
     xcoarse = [[x₁, x₂] for x₂ ∈ coarsespacerange, x₁ ∈ coarsespacerange]
@@ -185,14 +163,14 @@ function optimal_response_efficient(n)
     xcoarselist = xcoarse[:]    #xcoarse in vector form (vector of 2-vectors)
     Ṫcoarse = [Ṫ(x) for x ∈ xcoarse]
     Ṫcoarselist = [Ṫ(x) for x ∈ xcoarse][:]    #the optimal vector field listed as a vector of 2-vectors at coarse points
-    
+
     #x,y components of the points to plot the base of the arrows
     arrowx = [xcoarselist[i][1] for i ∈ eachindex(xcoarselist)]
     arrowy = [xcoarselist[i][2] for i ∈ eachindex(xcoarselist)]
     #x,y components of the arrow directions
     arrowu = [Ṫcoarselist[i][1] for i ∈ eachindex(xcoarselist)]
     arrowv = [Ṫcoarselist[i][2] for i ∈ eachindex(xcoarselist)]
-   
+
     arrowfig = Figure(size=(425, 425))
     arrowax = Axis(arrowfig[1, 1], autolimitaspect=1)
 
@@ -202,17 +180,12 @@ function optimal_response_efficient(n)
     #plot optimal vector field
     arrows!(arrowax, arrowx, arrowy, real(arrowu), real(arrowv), lengthscale=scalefactor, arrowsize=6)
     display(arrowfig)
-    save("arrowfig.pdf", arrowfig)
+    save("optimalvffig.pdf", arrowfig)
 
     #plot optimal vector field on top of the SRB measure
     arrows!(srbax, arrowx, arrowy, real(arrowu), real(arrowv), lengthscale=scalefactor, arrowsize=6)
     display(srbfig)
-    save("testfig.pdf", srbfig)
-
-    #plot stable manifold on top of the vector field and SRB measure
-    scatter!(srbax, Tuple.(extendedsegment), markersize=4, color=:red)
-    display(srbfig)
-    save("totalfig.pdf", srbfig)
+    save("optimalvfsrbfig.pdf", srbfig)
 
     return a1, a2, Ṫ, Ṫcoarse, ffine
 
