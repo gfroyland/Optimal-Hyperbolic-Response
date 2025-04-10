@@ -6,7 +6,7 @@ First, run `optimal_response_efficient` for suitably chosen value of $n$, for ex
 
 `a1, a2, Ṫ, Ṫcoarse, ffine = optimal_response_efficient(16)`
 
-This will store the arrays of Fourier coefficients for $\dot{T}$ in the arrays `a1`, `a2`, the vector field $\dot{T}$ (a function which takes a 2-vector as input and outputs a 2-vector), $\dot{T}$`coarse` ($\dot{T}$ evaluated on an $n\times n$ grid), and `ffine` (the SRB measure estimate evaluated on a $4n\times 4n$ grid).
+This will store the arrays of Fourier coefficients for $\dot{T}$ in the arrays `a1`, `a2`, the vector field `Ṫ` (a function which takes a 2-vector as input and outputs a 2-vector), `Ṫcoarse` ($\dot{T}$ evaluated on an $n\times n$ grid), and `ffine` (the SRB measure estimate evaluated on a $4n\times 4n$ grid).
 Plots of the estimates of the optimal vector field $\dot{T}$ and the SRB measure of $T$ are also displayed and saved.
 
 One may then run 
