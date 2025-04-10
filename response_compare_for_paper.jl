@@ -3,8 +3,8 @@ function response_compare(n, Ṫ, ffine0)
     #n is the number of Fourier modes in each coordinate direction
     #Ṫ is a function that returns a 2-vector of real numbers (namely the vector field)
     #ffine0 is the SRB measure of T₀ evaluated on the fine grid
-    
-    δ = 0.01
+
+    δ = 0.00
     T(x) = mod.([2x[1] + x[2] + 2δ * cos(2π * x[1]), x[1] + x[2] + δ * sin(4π * x[2] + 1)] + real(Ṫ(x)) / 1e11, 1)
 
     #Fourier modes in 2D space
@@ -23,7 +23,6 @@ function response_compare(n, Ṫ, ffine0)
 
     #fine spatial grid of 2-vectors x on 2-torus
     finespacerange = (1/2:N-1/2) / N
-    #inespacerange = (0:N-1) / N
     xfine = [[x₁, x₂] for x₂ ∈ finespacerange, x₁ ∈ finespacerange]
 
     #function outputting Fourier coefficients of 2D Fejer kernel. Input 𝐤 is a 2-vector
@@ -39,13 +38,10 @@ function response_compare(n, Ṫ, ffine0)
     println("Constructing transfer operator...")
     @showprogress Threads.@threads for 𝐢 ∈ 𝐊
         #calculate fft of e(-𝐢)∘T on xfine
-        ê𝐢T = fftshift(fft([e(-𝐢, x) for x ∈ Txfine]) / N^2)  #T.(xfine) should be a 2d array of 2-vectors.  I had to do fftshift for indexing in line 49 below
-        #if norm(ê𝐢T) * F̂(𝐢) / N > 1e-10
+        ê𝐢T = fftshift(fft([e(-𝐢, x) for x ∈ Txfine]) / N^2)
         for 𝐣 ∈ 𝐊
             #compute product of Fejer kernel Fourier coefficient and e∘T Fourier coefficient
             L[d[𝐢], d[𝐣]] = F̂(𝐢) * ê𝐢T[-𝐣[2]+N÷2+1, -𝐣[1]+N÷2+1]
-            #compute pure Fourier truncation without Fejer kernel smoothing
-            #L[d[𝐢], d[𝐣]] = ê𝐢T[-𝐣[1]+N÷2+1, -𝐣[2]+N÷2+1]
         end
     end
 
@@ -59,7 +55,7 @@ function response_compare(n, Ṫ, ffine0)
     f(x) = sum(f̂[d[𝐤]] * e(𝐤, x) for 𝐤 ∈ 𝐊)
     #evaluate the above linear combination on the fine spatial grid
     ffine = f.(xfine)
-    #maximise real part
+    #alter phase to maximise real part
     ψ = -angle(transpose(ffine[:]) * ffine[:]) / 2
     ffine = ffine * exp(im * ψ)
     parity = sign(real(ffine[1]))
@@ -79,9 +75,8 @@ function response_compare(n, Ṫ, ffine0)
     save("perturbed_SRB_fig.pdf", srbfig)
 
     c(x) = cos(2π * x[1]) + cos(2π * x[2])  #max at fixed point [0,0] and min at [0.5,0.5]
-    #alternate below
     #c(x) = sin(2π * (x[1]))^2 + cos(2π * (x[2] - 0.5))  #period 2 stabilisation
- 
+
     oldexpectation = mean(c.(xfine) .* real(ffine0))
     newexpectation = mean(c.(xfine) .* real(ffine1))
 
