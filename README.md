@@ -11,6 +11,6 @@ Plots of the estimates of the optimal vector field $\dot{T}$ and the SRB measure
 
 One may then run 
 
-`oldexpectation, newexpectation, ffine0, ffine1 = response_compare(16, $\dot{T}$, ffine)`
+`oldexpectation, newexpectation, ffine0, ffine1 = response_compare(16, Ṫ, ffine)`
 
 which will add a small increment of $\dot{T}$ to the map $T$ and compute and plot the resulting perturbed SRB measure. The value of the integral of the observation $c$ with respect to the unperturbed and perturbed SRB measures are also reported and stored as the numbers `oldexpectation` and `newexpectation`, respectively. The unperturbed and perturbed SRB measures are evaluated on $4n\times 4n$ grids and stored in the arrays `ffine0` and `ffine1`, respectively.
