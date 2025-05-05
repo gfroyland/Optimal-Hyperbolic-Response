@@ -2,6 +2,8 @@
 
 <b>Code to optimise linear response functionals for hyperbolic dynamical systems</b> 
 
+Based on the paper by Gary Froyland and Maxence Phalempin, "Optimal linear response for Anosov diffeomorphisms", https://arxiv.org/abs/2504.16532
+
 First, run `optimal_response_efficient` for suitably chosen value of $n$, for example 
 
 `a1, a2, Ṫ, Ṫcoarse, ffine = optimal_response_efficient(16)`
