@@ -4,6 +4,8 @@
 
 Based on the paper by Gary Froyland and Maxence Phalempin, "Optimal linear response for Anosov diffeomorphisms", https://arxiv.org/abs/2504.16532
 
+At the julia prompt, type `include("filename.jl")' for each of the two files above to load them.
+
 First, run `optimal_response_efficient` for suitably chosen value of $n$, for example 
 
 `a1, a2, Ṫ, Ṫcoarse, ffine = optimal_response_efficient(16)`
