@@ -6,7 +6,7 @@ Based on the paper by Gary Froyland and Maxence Phalempin, "Optimal linear respo
 
 At the julia prompt, type `include("filename.jl")` for each of the two files in the repository to load them.
 
-First, run `optimal_response_efficient` for suitably chosen value of $n$, for example 
+First, run `optimal_response_efficient` for suitably chosen value of $n$, for example at the julia prompt type (or copy/paste)
 
 `a1, a2, Ṫ, Ṫcoarse, ffine = optimal_response_efficient(16)`
 
