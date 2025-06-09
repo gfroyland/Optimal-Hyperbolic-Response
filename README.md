@@ -4,7 +4,7 @@
 
 Based on the paper by Gary Froyland and Maxence Phalempin, "Optimal linear response for Anosov diffeomorphisms", https://arxiv.org/abs/2504.16532
 
-At the julia prompt, type `include("filename.jl")' for each of the two files above to load them.
+At the julia prompt, type `include("filename.jl")` for each of the two files in the repository to load them.
 
 First, run `optimal_response_efficient` for suitably chosen value of $n$, for example 
 
