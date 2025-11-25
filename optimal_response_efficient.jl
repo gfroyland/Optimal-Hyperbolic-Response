@@ -24,10 +24,19 @@ function optimal_response_efficient(n)
     #T is the map on the 2-torus
     #L is the transfer operator representation in Fourier space
 
+    # for simplicity, this code computes the conjugation of the optimal coefficients, namely 
+    # ā⁽¹⁾ₖ = -∫ c⋅(I-L)⁻¹L(∇⋅(f₀(x)(DₓT₀)⁻¹(eₖ,0)(x)))) dx and
+    # ā⁽¹⁾ₗ = -∫ c⋅(I-L)⁻¹L(∇⋅(f₀(x)(DₓT₀)⁻¹(0,eₗ)(x)))) dx
+    # the right hand sides of the above expressions are ultimately conjugated just prior to storage to obtain a⁽¹⁾ₖ and a⁽¹⁾ₗ
+
     #define map on 2-torus
     δ = 0.00
     T(x) = mod.([2x[1] + x[2] + 2δ * cos(2π * x[1]), x[1] + x[2] + δ * sin(4π * x[2] + 1)], 1)
     Tlift(x) = [2x[1] + x[2] + 2δ * cos(2π * x[1]), x[1] + x[2] + δ * sin(4π * x[2] + 1)]
+
+    #define objective function
+    c(x) = cos(2π * x[1]) + cos(2π * x[2])  #max at fixed point [0,0] and min at [0.5,0.5]
+    #c(x) = sin(2π * (x[1]))^2 + cos(2π * (x[2] - 0.5))  #period 2 stabilisation
 
     #Fourier modes in 2D space
     e(𝐤, x) = exp(2π * im * (𝐤 ⋅ x))
@@ -79,7 +88,7 @@ function optimal_response_efficient(n)
     #alter phase to maximise real part
     ψ = -angle(transpose(ffine[:]) * ffine[:]) / 2
     ffine = ffine * exp(im * ψ)
-    parity = sign(real(ffine[1]))
+    parity = sign(real(mean(ffine)))
     ffine = ffine * parity
     ffineplot = normalize(real(ffine), 1) * N^2
 
@@ -96,13 +105,12 @@ function optimal_response_efficient(n)
     restrind = setdiff(1:n^2, d[[0, 0]])
     unitresolvent = inv(I - L[restrind, restrind])
 
-    c(x) = cos(2π * x[1]) + cos(2π * x[2])  #max at fixed point [0,0] and min at [0.5,0.5]
-    #c(x) = sin(2π * (x[1]))^2 + cos(2π * (x[2] - 0.5))  #period 2 stabilisation
+    #the term below ought to conjugate c, but c is real, so we forego this conjugation
     ĉordered = fft_and_reorder(c.(xfine), 𝐊, d)
-    premult = ĉordered[restrind]' * unitresolvent * L[restrind, restrind]
-
+    premult = transpose(ĉordered[restrind]) * unitresolvent * L[restrind, restrind]
     #need ForwardDiff to perform real and imaginary parts separately
     ∇ffine = parity * exp(im * ψ) * (ForwardDiff.gradient.(x -> real(f(x)), xfine) + ForwardDiff.gradient.(x -> imag(f(x)), xfine) * im)
+
     invDT = x -> inv(ForwardDiff.jacobian(Tlift, x))
     DinvDT = x -> ForwardDiff.jacobian(invDT, x)
     divinvDT(x) = [DinvDT(x)[1, 1] + DinvDT(x)[2, 2], DinvDT(x)[3, 1] + DinvDT(x)[4, 2]]
@@ -126,18 +134,19 @@ function optimal_response_efficient(n)
     termsum2 = zeros(ComplexF64, n, n)
 
     #set scale factor γ in the Sobolev H⁵ norm
-    γ = 0.025
+    γ = 0.02
 
-    scale(𝐤) = sum((2π * γ)^(2m) * norm(𝐤)^(2m) for m = 0:5)
+    scale(𝐤) = sum((2π * γ)^(2m) * norm(𝐤)^(2m) for m = 0:7)
 
     #compute Fourier coefficients of the x-component of the optimal vector field
+    println("Computing optimal Fourier coefficients...")
     @showprogress Threads.@threads for 𝐤 ∈ 𝐊
         term1 = term1prelim .* [[e(𝐤, x), 0] for x ∈ xfine]
         term2 = term2prelim .* [[e(𝐤, x), 0] for x ∈ xfine]
         term3 = tr.(term3prelim .* [∂e1(𝐤, x) for x ∈ xfine])
         fftallterms = fft_and_reorder(term1 + term2 + term3, 𝐊, d)
-        #store result
-        a1[d[𝐤]] = premult * fftallterms[restrind] / scale(𝐤)
+        #store result;  we need to apply the conjugation to a1 because the prior code computes its conjugate
+        a1[d[𝐤]] = -conj(premult * fftallterms[restrind] / scale(𝐤))
         termsum1[d[𝐤]] = fftallterms[d[[0, 0]]]
     end
 
@@ -147,8 +156,8 @@ function optimal_response_efficient(n)
         term2 = term2prelim .* [[0, e(𝐤, x)] for x ∈ xfine]
         term3 = tr.(term3prelim .* [∂e2(𝐤, x) for x ∈ xfine])
         fftallterms = fft_and_reorder(term1 + term2 + term3, 𝐊, d)
-        #store result
-        a2[d[𝐤]] = premult * fftallterms[restrind] / scale(𝐤)
+        #store result;  we need to apply the conjugation to a2 because the prior code computes its conjugate
+        a2[d[𝐤]] = -conj(premult * fftallterms[restrind] / scale(𝐤))
         termsum2[d[𝐤]] = fftallterms[d[[0, 0]]]
     end
 
@@ -164,29 +173,25 @@ function optimal_response_efficient(n)
     Ṫcoarse = [Ṫ(x) for x ∈ xcoarse]
     Ṫcoarselist = [Ṫ(x) for x ∈ xcoarse][:]    #the optimal vector field listed as a vector of 2-vectors at coarse points
 
-    #x,y components of the points to plot the base of the arrows
-    arrowx = [xcoarselist[i][1] for i ∈ eachindex(xcoarselist)]
-    arrowy = [xcoarselist[i][2] for i ∈ eachindex(xcoarselist)]
-    #x,y components of the arrow directions
-    arrowu = [Ṫcoarselist[i][1] for i ∈ eachindex(xcoarselist)]
-    arrowv = [Ṫcoarselist[i][2] for i ∈ eachindex(xcoarselist)]
-
-    arrowfig = Figure(size=(425, 425))
-    arrowax = Axis(arrowfig[1, 1], autolimitaspect=1)
+    #create points and vectors for the vector-field plot
+    points = Point2f.(xcoarselist)
+    vectors = Vec2f.(real.(Ṫcoarselist))
 
     #compute a scalefactor for the visual length of the vector field arrows
-    scalefactor = (1 / n) / max(maximum(real(arrowu)), maximum(real(arrowv)))  #scale so the largest component is the grid spacing
+    scalefactor = (√2 / n) / maximum(norm.(Ṫcoarselist))  #scale so the largest component is the grid spacing
 
-    #plot optimal vector field
-    arrows!(arrowax, arrowx, arrowy, real(arrowu), real(arrowv), lengthscale=scalefactor, arrowsize=6)
+    # set up figure axis and plot optimal vector field
+    arrowfig = Figure(size=(425, 425))
+    arrowax = Axis(arrowfig[1, 1], autolimitaspect=1)
+    arrows!(arrowax, points, vectors, lengthscale=scalefactor, arrowsize=6, align=:tail)
     display(arrowfig)
-    save("optimalvffig.pdf", arrowfig)
+    save("optimalvffig.png", arrowfig, px_per_unit=5)
 
     #plot optimal vector field on top of the SRB measure
-    arrows!(srbax, arrowx, arrowy, real(arrowu), real(arrowv), lengthscale=scalefactor, arrowsize=6)
+    arrows!(srbax, points, vectors, lengthscale=scalefactor, arrowsize=6, align=:tail)
     display(srbfig)
-    save("optimalvfsrbfig.pdf", srbfig)
+    save("optimalvfsrbfig.png", srbfig, px_per_unit=5)
 
-    return a1, a2, Ṫ, Ṫcoarse, ffine
+    return a1, a2, Ṫ, Ṫcoarse, ffine, L
 
 end
