@@ -1,4 +1,4 @@
-using LinearAlgebra, SparseArrays, Statistics, FFTW, Arpack, ForwardDiff, ProgressMeter, JLD2, CairoMakie
+using LinearAlgebra, SparseArrays, Statistics, Distances, FFTW, ForwardDiff, Arpack, ProgressMeter, JLD2, CairoMakie
 
 function fft_and_reorder(Afine, 𝐊, d)
     #Afine is a general NxN array of values on a fine grid
@@ -30,13 +30,13 @@ function optimal_response_efficient(n)
     # the right hand sides of the above expressions are ultimately conjugated just prior to storage to obtain a⁽¹⁾ₖ and a⁽¹⁾ₗ
 
     #define map on 2-torus
-    δ = 0.00
+    δ = 0.0
     T(x) = mod.([2x[1] + x[2] + 2δ * cos(2π * x[1]), x[1] + x[2] + δ * sin(4π * x[2] + 1)], 1)
     Tlift(x) = [2x[1] + x[2] + 2δ * cos(2π * x[1]), x[1] + x[2] + δ * sin(4π * x[2] + 1)]
 
     #define objective function
-    c(x) = cos(2π * x[1]) + cos(2π * x[2])  #max at fixed point [0,0] and min at [0.5,0.5]
-    #c(x) = sin(2π * (x[1]))^2 + cos(2π * (x[2] - 0.5))  #period 2 stabilisation
+    c(x) = cos(2π * x[1]) + cos(2π * x[2])  #max at fixed point [0,0] and min at [0.5,0.5].
+    #c(x) = exp(-peuclidean(x, [0.1796, 0.4023], [1, 1])^2 / 0.1^2) + exp(-peuclidean(x, [0.7877, 0.5852], [1, 1])^2 / 0.1^2)   #period-2 orbit stabilisation
 
     #Fourier modes in 2D space
     e(𝐤, x) = exp(2π * im * (𝐤 ⋅ x))

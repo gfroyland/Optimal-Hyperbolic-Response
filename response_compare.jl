@@ -5,12 +5,12 @@ function response_compare(n, Ṫ, ffine0)
     #ffine0 is the SRB measure of T₀ evaluated on the fine grid
 
     δ = 0.00
-    #define perturbed version of T with tiny increment of Ṫ added (divide by 8e10 for period 2)
-    T(x) = mod.([2x[1] + x[2] + 2δ * cos(2π * x[1]), x[1] + x[2] + δ * sin(4π * x[2] + 1)] + real(Ṫ(x)) / 9e10, 1)
-    
+    #define perturbed version of T with tiny increment of Ṫ added (divide by 9e10 for fixed point and 3e10 for period 2)
+    T(x) = mod.([2x[1] + x[2] + 2δ * cos(2π * x[1]), x[1] + x[2] + δ * sin(4π * x[2] + 1)] + real(Ṫ(x)) / 3e10, 1)
+
     #define objective function 
-    c(x) = cos(2π * x[1]) + cos(2π * x[2])  #max at fixed point [0,0] and min at [0.5,0.5]
-    #c(x) = sin(2π * (x[1]))^2 + cos(2π * (x[2] - 0.5))  #period 2 stabilisation
+    c(x) = cos(2π * x[1]) + cos(2π * x[2])  #max at fixed point [0,0] and min at [0.5,0.5].
+    #c(x) = exp(-peuclidean(x, [0.1796, 0.4023], [1, 1])^2 / 0.1^2) + exp(-peuclidean(x, [0.7877, 0.5852], [1, 1])^2 / 0.1^2)   #period-2 orbit stabilisation
 
     #Fourier modes in 2D space
     e(𝐤, x) = exp(2π * im * (𝐤 ⋅ x))
